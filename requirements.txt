@@ -1,0 +1,11 @@
+# CPU-only PyTorch is enough for prediction. RDKit must stay 2026.09: the training graphs were built with it.
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch==2.6.0
+torch_geometric==2.8.1
+lightgbm==4.6.0
+rdkit==2026.9.1
+streamlit==1.66.1
+numpy
+pandas
+matplotlib
+pillow

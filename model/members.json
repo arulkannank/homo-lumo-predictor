@@ -1,0 +1,282 @@
+{
+ "targets": [
+  "HOMO",
+  "LUMO"
+ ],
+ "members": [
+  {
+   "name": "GINE",
+   "file": "GINE.pt",
+   "arch": {}
+  },
+  {
+   "name": "GINE (tuned)",
+   "file": "GINE_tuned.pt",
+   "arch": {
+    "hidden": 384,
+    "layers": 6,
+    "dropout": 0.1
+   }
+  },
+  {
+   "name": "GINE + graph descriptors",
+   "file": "GINE_plus_graph_descriptors.pt",
+   "arch": {}
+  },
+  {
+   "name": "AttentiveFP",
+   "file": "AttentiveFP.pt",
+   "arch": {}
+  },
+  {
+   "name": "D-MPNN",
+   "file": "D-MPNN.pt",
+   "arch": {}
+  }
+ ],
+ "scaler": {
+  "y_mean": [
+   -6.978628158569336,
+   -1.4483743906021118
+  ],
+  "y_std": [
+   0.6644377112388611,
+   0.6464641094207764
+  ],
+  "g_mean": [
+   29.600432837974317,
+   32.764911268215265,
+   4.504775645649978,
+   3.181243687779541,
+   4.164478430240947,
+   12.628884720819507,
+   6.680161592843746,
+   3181.6270090895973,
+   5.312530169568211,
+   2.198759898983985,
+   3.318568749098254,
+   1.9760782681989577,
+   1152.78520873762,
+   20.903497175343393,
+   16.61253753761468,
+   17.48681898090114,
+   14.277327433109528,
+   9.661424155505488,
+   10.592997650680317,
+   7.419652292798757,
+   8.69860152377652,
+   5.308903539297037,
+   6.66269176658477,
+   3.877504131476932,
+   5.299224959114277,
+   -3.0983743729939084,
+   19.714703365506395,
+   7.993164065046195,
+   3.7893873754453185,
+   6.8491161839863945
+  ],
+  "g_std": [
+   11.925068077140162,
+   13.915213860828734,
+   25.486347649841782,
+   2.5778688645766836,
+   2.4542236678468226,
+   3.9212272756932207,
+   2.065699934106992,
+   7686.852695391119,
+   1.3922940788358955,
+   0.10215562117663128,
+   0.4709112026029972,
+   0.5107119606092005,
+   662.1823441750371,
+   8.262890902954384,
+   7.03744296773354,
+   7.2631226042381,
+   5.778996469537409,
+   4.31581165725705,
+   4.980271874717653,
+   3.7592177575582832,
+   5.714088440555643,
+   2.8776614722791556,
+   6.69264962927408,
+   2.4243035223003226,
+   10.796684328953704,
+   1.5670445206873564,
+   8.140074560218912,
+   3.5473574803177783,
+   1.9683913613202186,
+   3.0794104588957243
+  ]
+ },
+ "dims": {
+  "node_dim": 49,
+  "edge_dim": 11,
+  "global_dim": 30
+ },
+ "names": {
+  "node": [
+   "element=B",
+   "element=C",
+   "element=N",
+   "element=O",
+   "element=F",
+   "element=Si",
+   "element=P",
+   "element=S",
+   "element=Cl",
+   "element=As",
+   "element=Se",
+   "element=Br",
+   "element=I",
+   "element=other",
+   "degree=0",
+   "degree=1",
+   "degree=2",
+   "degree=3",
+   "degree=4",
+   "degree=5",
+   "degree=other",
+   "charge=-1",
+   "charge=0",
+   "charge=1",
+   "charge=other",
+   "num_H=0",
+   "num_H=1",
+   "num_H=2",
+   "num_H=3",
+   "num_H=other",
+   "hybridization=SP",
+   "hybridization=SP2",
+   "hybridization=SP3",
+   "hybridization=SP3D",
+   "hybridization=SP3D2",
+   "hybridization=other",
+   "chirality=CHI_UNSPECIFIED",
+   "chirality=CHI_TETRAHEDRAL_CW",
+   "chirality=CHI_TETRAHEDRAL_CCW",
+   "chirality=other",
+   "aromatic",
+   "in_ring",
+   "ring_size_3",
+   "ring_size_4",
+   "ring_size_5",
+   "ring_size_6",
+   "ring_size_7",
+   "ring_size_8",
+   "mass/100"
+  ],
+  "edge": [
+   "bond=SINGLE",
+   "bond=DOUBLE",
+   "bond=TRIPLE",
+   "bond=AROMATIC",
+   "bond=other",
+   "stereo=STEREONONE",
+   "stereo=STEREOZ",
+   "stereo=STEREOE",
+   "stereo=other",
+   "conjugated",
+   "in_ring"
+  ],
+  "graph": [
+   "n_atoms",
+   "n_bonds",
+   "n_rings",
+   "n_aromatic_rings",
+   "cyclomatic",
+   "diameter",
+   "radius",
+   "wiener",
+   "mean_distance",
+   "mean_degree",
+   "max_degree",
+   "BalabanJ",
+   "BertzCT",
+   "Chi0",
+   "Chi0n",
+   "Chi0v",
+   "Chi1",
+   "Chi1n",
+   "Chi1v",
+   "Chi2n",
+   "Chi2v",
+   "Chi3n",
+   "Chi3v",
+   "Chi4n",
+   "Chi4v",
+   "HallKierAlpha",
+   "Kappa1",
+   "Kappa2",
+   "Kappa3",
+   "log10_Ipc"
+  ]
+ },
+ "elements": [
+  "B",
+  "C",
+  "N",
+  "O",
+  "F",
+  "Si",
+  "P",
+  "S",
+  "Cl",
+  "As",
+  "Se",
+  "Br",
+  "I"
+ ],
+ "rdkit_version": "2026.09.1",
+ "scores": {
+  "HOMO": {
+   "test_R2": 0.9156816601753235,
+   "test_MAE": 0.12151885777711868,
+   "cv_R2_mean": 0.9203194570564118,
+   "cv_R2_std": 0.003160258021963603,
+   "cv_MAE": 0.1210110509324988
+  },
+  "LUMO": {
+   "test_R2": 0.9267184734344482,
+   "test_MAE": 0.11997354030609131,
+   "cv_R2_mean": 0.9251018203366133,
+   "cv_R2_std": 0.0021489825307818063,
+   "cv_MAE": 0.1192345436078145
+  }
+ },
+ "spread": {
+  "HOMO": {
+   "p95": 0.15571607649326324,
+   "MAE_above": 0.27940741181373596,
+   "MAE_below": 0.11320620030164719
+  },
+  "LUMO": {
+   "p95": 0.15414686501026154,
+   "MAE_above": 0.2559511959552765,
+   "MAE_below": 0.11281447857618332
+  }
+ },
+ "lgbm": {
+  "HOMO": {
+   "features": "avalon_counts + ecfp4_counts",
+   "R2": 0.8295112105752356,
+   "RMSE (eV)": 0.2707519219093175,
+   "MAE (eV)": 0.17801479940971493,
+   "cv_R2_mean": 0.8428868867641703,
+   "cv_R2_std": 0.006132810435888267,
+   "cv_MAE": 0.17420867400985648,
+   "n_estimators": 4279
+  },
+  "LUMO": {
+   "features": "avalon_counts + ecfp4_counts",
+   "R2": 0.8572058457161924,
+   "RMSE (eV)": 0.24412840906810687,
+   "MAE (eV)": 0.17124976094680558,
+   "cv_R2_mean": 0.85994299596942,
+   "cv_R2_std": 0.0035114694313327184,
+   "cv_MAE": 0.16896171991445091,
+   "n_estimators": 5370
+  }
+ },
+ "n_train": 38498,
+ "n_molecules": 48115
+}
