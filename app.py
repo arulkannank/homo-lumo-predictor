@@ -50,6 +50,9 @@ Predicts the **HOMO and LUMO energies** (eV) of an organic molecule from its SMI
 | Test MAE (eV) | {scores['HOMO']['test_MAE']:.3f} | {scores['LUMO']['test_MAE']:.3f} | {lgbm['HOMO']['MAE (eV)']:.3f} | {lgbm['LUMO']['MAE (eV)']:.3f} |
 | 5-fold CV R² | {scores['HOMO']['cv_R2_mean']:.3f} | {scores['LUMO']['cv_R2_mean']:.3f} | {lgbm['HOMO']['cv_R2_mean']:.3f} | {lgbm['LUMO']['cv_R2_mean']:.3f} |
 
+**Prediction intervals:** each GNN prediction comes with a 90% and 95% interval from conformal prediction. On
+held-out test molecules, 90% (95%) of DFT values fell inside, at every level of similarity to the training data.
+
 **Limits:** only the elements {', '.join(predictor.info['elements'])} (plus H) were in the training data;
 predictions are less reliable for molecules unlike any training molecule (see the similarity shown with each
 prediction). The values are single-molecule DFT energies, not measured or solid-state levels.
@@ -80,6 +83,10 @@ with single:
                 c1.metric('HOMO', f"{r['HOMO']:.2f} eV", help=f"spread of the {len(predictor.models)} models: ± {r['HOMO_spread']:.2f} eV")
                 c2.metric('LUMO', f"{r['LUMO']:.2f} eV", help=f"spread of the {len(predictor.models)} models: ± {r['LUMO_spread']:.2f} eV")
                 c3.metric('Gap (LUMO − HOMO)', f"{r['gap']:.2f} eV")
+                st.caption(f"90% prediction interval: HOMO {r['HOMO'] - r['HOMO_pi90']:.2f} to {r['HOMO'] + r['HOMO_pi90']:.2f} eV, "
+                           f"LUMO {r['LUMO'] - r['LUMO_pi90']:.2f} to {r['LUMO'] + r['LUMO_pi90']:.2f} eV "
+                           f"(95%: ± {r['HOMO_pi95']:.2f} / ± {r['LUMO_pi95']:.2f} eV). Calibrated by conformal prediction "
+                           "on the test set, separately for each level of similarity to the training data.")
                 st.markdown('**LightGBM** (classical machine learning on fingerprints)')
                 c1, c2, c3 = st.columns(3)
                 c1.metric('HOMO', f"{r['LGBM_HOMO']:.2f} eV", delta=f"{r['LGBM_HOMO'] - r['HOMO']:+.2f} vs GNN",

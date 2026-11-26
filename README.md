@@ -55,6 +55,10 @@ print(r['HOMO'], r['LUMO'], r['LGBM_HOMO'], r['LGBM_LUMO'], r['warnings'])
 
 Every prediction comes with:
 
+- **A 90% and 95% prediction interval** for the GNN ensemble, from split conformal prediction: scaled by the
+  disagreement between the five GNNs and calibrated separately for each level of similarity to the training data.
+  On held-out test molecules, 90% (95%) of DFT values fell inside the intervals in every similarity band; the 90%
+  interval is about ±0.19 eV for close analogues of training molecules and about ±0.66 eV for unfamiliar ones.
 - **Similarity to the training data:** the ECFP4 Tanimoto similarity to the nearest training molecule, and the test-set
   error for molecules that similar. The GNN ensemble's MAE ranges from about 0.09 eV (similarity ≥ 0.7) to
   0.22–0.24 eV (similarity < 0.3).
@@ -94,3 +98,9 @@ The dataset's data files are licensed under
 - stored canonical RDKit SMILES with the DFT HOMO and LUMO values.
 
 If you use this app or its models, please cite the dataset above.
+
+## License
+
+The code is released under the [MIT License](LICENSE). The reference data in `model/reference.npz` are derived from
+CSD_EES and remain under its [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/) license, which requires
+attribution as described above.

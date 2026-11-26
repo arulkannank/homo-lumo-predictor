@@ -72,6 +72,12 @@ class Predictor:
         self.ml_clip = np.float32(pre['clip'])
         self.ml_models = {t: lgb.Booster(model_file=os.path.join(model_dir, f'lgbm_{t}.txt')) for t in self.info['targets']}
 
+        # Prediction intervals: split conformal prediction, scaled by the ensemble spread and calibrated per band of
+        # similarity to the training set (90% / 95% of test molecules in every band fell inside)
+        with open(os.path.join(model_dir, 'conformal.json')) as f:
+            self.conformal = json.load(f)
+        assert self.conformal['members'] == list(self.models)
+
     # ---- featurization ----
     def to_data(self, mol):
         """PyG graph of an RDKit molecule, standardized like the training data."""
@@ -118,6 +124,13 @@ class Predictor:
         if mol.GetNumAtoms() > 150:
             warnings.append(f'Very large ({mol.GetNumAtoms()} heavy atoms); few training molecules are this big.')
         return warnings
+
+    def interval(self, target, spread, similarity, level=90):
+        """Half-width (eV) of the `level`% prediction interval of the GNN ensemble."""
+        c = self.conformal['targets'][target]
+        band = int(np.clip(np.searchsorted(self.conformal['similarity_edges'], similarity, side='right') - 1,
+                           0, len(c[f'q{level}']) - 1))
+        return c[f'q{level}'][band] * (spread + c['beta'])
 
     def expected_mae(self, similarity, prefix=''):
         """Test-set MAE (HOMO, LUMO) for molecules this similar to the training set: of the GNN ensemble, or of
@@ -174,6 +187,9 @@ class Predictor:
                      nearest_HOMO=float(self.ref_y[row, 0]), nearest_LUMO=float(self.ref_y[row, 1]))
             r['expected_MAE_HOMO'], r['expected_MAE_LUMO'] = self.expected_mae(r['similarity'])
             r['expected_LGBM_MAE_HOMO'], r['expected_LGBM_MAE_LUMO'] = self.expected_mae(r['similarity'], 'LGBM_')
+            for t in ('HOMO', 'LUMO'):
+                for level in (90, 95):
+                    r[f'{t}_pi{level}'] = self.interval(t, r[f'{t}_spread'], r['similarity'], level)
             if r['similarity'] < LOW_SIMILARITY:
                 r['warnings'].append(f"No similar molecule in the training set (nearest Tanimoto {r['similarity']:.2f}): "
                                      'expect larger errors.')
@@ -200,6 +216,8 @@ class Predictor:
                          'GNN HOMO (eV)': r.get('HOMO'), 'GNN LUMO (eV)': r.get('LUMO'), 'GNN gap (eV)': r.get('gap'),
                          'LightGBM HOMO (eV)': r.get('LGBM_HOMO'), 'LightGBM LUMO (eV)': r.get('LGBM_LUMO'),
                          'LightGBM gap (eV)': r.get('LGBM_gap'),
+                         'GNN HOMO 90% interval ± (eV)': r.get('HOMO_pi90'),
+                         'GNN LUMO 90% interval ± (eV)': r.get('LUMO_pi90'),
                          'GNN HOMO spread (eV)': r.get('HOMO_spread'), 'GNN LUMO spread (eV)': r.get('LUMO_spread'),
                          'similarity to training set': r.get('similarity'),
                          'typical GNN HOMO error (eV)': r.get('expected_MAE_HOMO'),

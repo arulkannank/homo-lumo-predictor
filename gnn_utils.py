@@ -5,6 +5,8 @@
 - Models: GINE (optionally with the graph descriptors), AttentiveFP, a Chemprop-style D-MPNN and an MLP on the graph
   descriptors. The GINE / AttentiveFP / MLP classes are the ones CSD_graph_deep_learning.ipynb trained (same
   parameter names), so its saved weights in deep_learning/ load here.
+- SchNetNet + conformer_dataset: a SchNet-style network on 3D conformers (atomic numbers and positions, hydrogens
+  included), for comparison with the 2D graph models.
 - train_model: AdamW + ReduceLROnPlateau, early stopping on a validation set, a checkpoint every epoch (a rerun
   resumes), finished runs are skipped.
 - integrated_gradients: atom / bond / descriptor attributions for one molecule.
@@ -21,7 +23,8 @@ import torch.nn.functional as F
 from torch_geometric.data import Batch, Data
 from torch_geometric.loader import DataLoader
 from torch_geometric.nn import AttentiveFP, GINEConv, global_add_pool, global_mean_pool
-from torch_geometric.utils import scatter
+from torch_geometric.nn.models.schnet import GaussianSmearing, InteractionBlock, ShiftedSoftplus
+from torch_geometric.utils import scatter, to_dense_batch
 
 TARGETS = ['HOMO', 'LUMO']
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -35,7 +38,9 @@ class Graphs:
     """All molecular graphs of graphs/graphs.npz (same 48,115 rows as every feature file), with targets and
     whole-graph descriptors."""
 
-    def __init__(self, folder='graphs'):
+    def __init__(self, folder='graphs', targets=None):
+        """targets: optional DataFrame (one row per molecule, same order) of other properties to predict instead
+        of HOMO/LUMO, e.g. excitation energies."""
         G = np.load(f'{folder}/graphs.npz')
         self.desc = pd.read_csv(f'{folder}/graph_descriptors.csv')
         with open(f'{folder}/feature_names.json') as f:
@@ -45,7 +50,9 @@ class Graphs:
         self.edge_attr = torch.from_numpy(G['edge_attr'].astype(np.float32))
         self.node_ptr, self.edge_ptr = G['node_ptr'], G['edge_ptr']
         self.smiles = self.desc['SMILES'].to_numpy()
-        self.Y = self.desc[TARGETS].to_numpy(np.float32)
+        self.target_names = TARGETS if targets is None else list(targets.columns)
+        self.Y = (self.desc[TARGETS] if targets is None else targets).to_numpy(np.float32)
+        assert len(self.Y) == len(self.desc)
         self.GD = self.desc[self.names['graph']].to_numpy(np.float64)
         self.dims = {'node_dim': self.x.shape[1], 'edge_dim': self.edge_attr.shape[1], 'global_dim': self.GD.shape[1]}
 
@@ -53,7 +60,7 @@ class Graphs:
         return len(self.node_ptr) - 1
 
     def dataset(self, fit_idx):
-        """One Data object per molecule, with HOMO/LUMO (y) and the graph descriptors (g) standardized with the
+        """One Data object per molecule, with the targets (y) and the graph descriptors (g) standardized with the
         mean/std of the rows `fit_idx` (descriptors: NaN -> mean, clipped to +-10 std). Returns (data, scaler);
         scaler turns standardized predictions back into eV."""
         y_mean, y_std = self.Y[fit_idx].mean(0), self.Y[fit_idx].std(0)
@@ -155,8 +162,66 @@ class DescriptorMLP(nn.Module):
         return self.net(data.g)
 
 
+def radius_edges(pos, batch, cutoff):
+    """Directed edges between all atom pairs of the same molecule closer than `cutoff` (Angstrom), and their
+    distances. A dense per-batch version of torch_cluster.radius_graph, which is not installed here."""
+    dense, mask = to_dense_batch(pos, batch)                    # molecules x max atoms x 3
+    dist = torch.cdist(dense, dense)
+    n = dense.size(1)
+    ok = (dist < cutoff) & mask[:, :, None] & mask[:, None, :] & ~torch.eye(n, dtype=torch.bool, device=pos.device)
+    b, i, j = ok.nonzero(as_tuple=True)
+    offset = torch.cumsum(mask.sum(1), 0) - mask.sum(1)         # index of each molecule's first atom
+    return torch.stack([offset[b] + j, offset[b] + i]), dist[b, i, j]
+
+
+class SchNetNet(nn.Module):
+    """SchNet (Schuett et al., J. Chem. Phys. 2018) on 3D conformers: continuous-filter convolutions over
+    interatomic distances (Gaussian-expanded, cutoff 5 Angstrom), hydrogens included. PyG's interaction blocks,
+    with the sum + mean readout and head used by GINENet so the two differ only in what they see."""
+
+    def __init__(self, hidden=128, filters=128, interactions=6, gaussians=50, cutoff=5.0, n_out=len(TARGETS)):
+        super().__init__()
+        self.cutoff = cutoff
+        self.embedding = nn.Embedding(100, hidden)
+        self.expand = GaussianSmearing(0.0, cutoff, gaussians)
+        self.interactions = nn.ModuleList(InteractionBlock(hidden, gaussians, filters, cutoff)
+                                          for _ in range(interactions))
+        self.pool_norm = nn.BatchNorm1d(2 * hidden)
+        self.head = nn.Sequential(nn.Linear(2 * hidden, hidden), ShiftedSoftplus(), nn.Linear(hidden, n_out))
+
+    def forward(self, data):
+        with torch.no_grad():
+            edge_index, dist = radius_edges(data.pos, data.batch, self.cutoff)
+        edge_attr = self.expand(dist)
+        h = self.embedding(data.z)
+        for block in self.interactions:
+            h = h + block(h, edge_index, dist, edge_attr)
+        g = torch.cat([global_add_pool(h, data.batch), global_mean_pool(h, data.batch)], dim=1)
+        return self.head(self.pool_norm(g))
+
+
+def conformer_dataset(sdf_path, Y, fit_idx):
+    """Data(z, pos, y) per molecule from an SDF whose record titles are row numbers (features/mordred/
+    conformers_3d.sdf: ETKDGv3 + MMFF/UFF conformers with hydrogens); rows without a conformer are None.
+    Targets standardized on the rows `fit_idx`. Returns (data, scaler)."""
+    from rdkit import Chem
+    y_mean, y_std = Y[fit_idx].mean(0), Y[fit_idx].std(0)
+    Ys = torch.from_numpy(((Y - y_mean) / y_std).astype(np.float32))
+    data = [None] * len(Y)
+    for m in Chem.SDMolSupplier(sdf_path, removeHs=False, sanitize=False):
+        if m is None:
+            continue
+        row = int(m.GetProp('_Name'))
+        z = torch.tensor([a.GetAtomicNum() for a in m.GetAtoms()], dtype=torch.long)
+        pos = torch.from_numpy(m.GetConformer().GetPositions().astype(np.float32))
+        data[row] = Data(z=z, pos=pos, y=Ys[row:row + 1])
+    return data, {'y_mean': y_mean, 'y_std': y_std}
+
+
 def build_model(name, dims, **hp):
     """A new model by name; hp = architecture settings (hidden, layers, dropout, ...)."""
+    if name.startswith('SchNet'):
+        return SchNetNet(**hp)
     n, e, g = dims['node_dim'], dims['edge_dim'], dims['global_dim']
     if name.startswith('GINE + graph descriptors'):
         return GINENet(n, e, global_dim=g, **hp)
